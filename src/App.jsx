@@ -5,6 +5,7 @@ import { saveAs } from "file-saver";
 import { generateAndDownload } from "./reportGenerator";
 import * as pdfjsLib from "pdfjs-dist";
 import PdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { parseHwp } from "./hwpParser";
 pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
 
 // ── 파일 파서 ─────────────────────────────────────────────────
@@ -24,31 +25,6 @@ async function extractChunks(file) {
   throw new Error("지원하지 않는 파일 형식입니다.");
 }
 
-async function parseHwp(file) {
-  const { parseHwp: kordocParseHwp } = await import("kordoc");
-  const buf = await file.arrayBuffer();
-  const result = await kordocParseHwp(buf);
-  if (!result.success) throw new Error(`HWP 파싱 실패: ${result.error}`);
-  const chunks = [];
-  let paraNum = 0;
-  for (const block of result.blocks) {
-    const text = extractBlockText(block).trim();
-    if (text) { paraNum++; chunks.push({ text, location: `${paraNum}번째 단락` }); }
-  }
-  return chunks;
-}
-
-function extractBlockText(block) {
-  if (block.type === "paragraph" || block.type === "heading" || block.type === "list") {
-    const own = block.text ?? "";
-    const child = (block.children ?? []).map(extractBlockText).join(" ");
-    return [own, child].filter(Boolean).join(" ");
-  }
-  if (block.type === "table" && block.table) {
-    return block.table.cells.flatMap(row => row.map(cell => cell.text ?? "")).filter(Boolean).join(" ");
-  }
-  return "";
-}
 
 async function parseDocx(file) {
   const zip = await readZip(file);
@@ -303,12 +279,12 @@ function UploadBox({ label, file, onFile, color }) {
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = file ? color : "#CBD5E1"; }}
     >
-      <input ref={ref} type="file" accept=".hwpx,.docx,.pptx,.xlsx,.pdf" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) onFile(e.target.files[0]); }} />
+      <input ref={ref} type="file" accept=".hwp,.hwpx,.docx,.pptx,.xlsx,.pdf" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) onFile(e.target.files[0]); }} />
       <div style={{ fontSize: 28, marginBottom: 8 }}>{file ? "📄" : "⬆️"}</div>
       <div style={{ fontWeight: 700, fontSize: 13, color: file ? color : "#64748B", marginBottom: 4 }}>{label}</div>
       {file
         ? <div style={{ fontSize: 12, color: "#64748B" }}>{file.name}<br />{(file.size / 1024).toFixed(1)} KB</div>
-        : <div style={{ fontSize: 12, color: "#94A3B8" }}>HWPX · DOCX · PPTX · XLSX · PDF</div>}
+        : <div style={{ fontSize: 12, color: "#94A3B8" }}>HWP ·HWPX · DOCX · PPTX · XLSX · PDF</div>}
     </div>
   );
 }
